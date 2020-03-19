@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<head>
+<style>
+table tr td, table tr th{
+	border: black 1px solid;
+	padding: 5px;
+}
+</style>
+<script>
+function test() {
+	var reg = new Array("Chennai", "Chennai", "Dehradun", "Jorhat", "Jorhat", "Kolkata", "Mumbai", "Mumbai", "Mumbai", "Vadodara");
+	var basin = new Array("KG", "PG", "Frontier", "AAFB", "AAFB", "MBA", "WOB", "WOB-S", "WOB-N", "WON");
+
+	var regs = new Array();
+
+	for (var i = 0; i < reg.length; i++) {
+		if(reg[i] === 'Chennai') {
+			console.log('Its working.');
+		}
+		console.log(reg[i]);
+		var s = reg[i];
+		if(!(s in regs)) {
+			console.log('It is happening.');
+			regs[s] = new Array();
+			regs[s]['rowspan'] = 0;
+		}
+		regs[s]['printed'] = 'no';
+		regs[s]['rowspan'] += 1;
+	}
+	for (var key in regs) {
+		var value = regs[key];
+		console.log(key, value);
+	}
+	var html = '<table><thead><tr><th>Region</th><th>Basin<tr></thead><tbody>';
+	for (var i = 0; i < reg.length; i++) {
+		if(regs[reg[i]]['printed'] == 'no') {
+			html += '<tr><td rowspan = "' + regs[reg[i]]['rowspan'] + '">' + reg[i] + '</td>';
+			regs[reg[i]]['printed'] = 'yes';
+		}
+		html += '<td>' + basin[i] + '</td></tr>';
+	}
+	html += '</tbody></table>';
+	document.getElementById('testdiv').innerHTML = html;
+}
+</script>
+</head>
+<body>
+	<input type=button onClick="test()" value="check">
+	<div id="testdiv"></div>
+</body>	

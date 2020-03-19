@@ -7,11 +7,16 @@ include_once 'functions.php';
 	<head>
 		<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 		<title>Geophysical Services - Dashboard</title>
+
 		<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
 		<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
 		<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.10/js/select2.min.js"></script>
+		<script src="scripts/main.js"></script>
+
 		<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+		<link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.10/css/select2.min.css" rel="stylesheet" />
 		<link rel="stylesheet" href="css/style.css">
 	</head>
 	<body>
@@ -24,21 +29,20 @@ include_once 'functions.php';
 				</div>
 			</div>
 			<div class="row">
-				<div class="col-lg-1"></div>
-				<div class="col-lg-3">
-					<div class="input-group mb-3">
+				<div class="col-lg-2">
+					<div class="input-group">
 						<div class="input-group-prepend">
 							<label class="input-group-text" for="fpselect">Field Party</label>
 						</div>
-						<select class="custom-select" id="fpselect">
+						<select class="js-example-responsive" style="width: 60%;" id="fpselect" onchange="create_fp_area();">
 							<option value="" disabled selected>Choose one...</option>
 							<?php 
 								$conn = connect_db();
-								$query = 'SELECT * FROM field_parties';
+								$query = 'SELECT * FROM field_parties ORDER BY field_party_name';
 								$result = mysqli_query($conn, $query);
 								if ($result) {
 									while ($row = $result->fetch_assoc()) {
-										echo '<option value="'.$row['field_party_id'].'">'.$row['field_party_name'].'</option>';
+										echo '<option value="'.$row['field_party_name'].'">'.$row['field_party_name'].'</option>';
 									}
 								}
 								mysqli_close($conn);
@@ -49,12 +53,29 @@ include_once 'functions.php';
 				<div class="col-lg-3">
 					<div class="input-group">
 						<div class="input-group-prepend">
+							<label class="input-group-text" for="areaselect">Area</label>
+						</div>
+						<select id="areaselect" style="width: 75%;" onchange="drop_down_acq_type();"></select>
+					</div>
+				</div>
+				<div class="col-lg-2">
+					<div class="input-group">
+						<div class="input-group-prepend">
+							<label class="input-group-text" for="acqtypeselect">Type</label>
+						</div>
+						<select id="acqtypeselect" style="width: 75%;" onchange="create_dates_limit();">
+						</select>
+					</div>
+				</div>
+				<div class="col-lg-2">
+					<div class="input-group">
+						<div class="input-group-prepend">
 							<span class="input-group-text">From Date</span>
 						</div>
 						<input id="fromdate" type="date" class="form-control">
 					</div>
 				</div>
-				<div class="col-lg-3">
+				<div class="col-lg-2">
 					<div class="input-group">
 						<div class="input-group-prepend">
 							<span class="input-group-text">To Date</span>
@@ -64,8 +85,7 @@ include_once 'functions.php';
 				</div>
 				<div class="col-lg-1">
 					<button id="fetch" type="button" class="btn btn-info">Go!</button>
-				</div>
-				<div class="col-lg-1"></div>	
+				</div>	
 			</div>
 			<div class="row">
 				<div class="col-lg-12">
@@ -88,16 +108,16 @@ include_once 'functions.php';
 </html>
 <script>
 $(document).ready(function(){
-	function load_data(fp, fromdate, todate, fp_text) {
+	function load_data(fp, fromdate, todate, fp_text, dprarea, atype, si) {
 		$.ajax({
 			url:"fetch.php",
 			method:"POST",
 			dataType: 'JSON',
-			data:{fp:fp, fromdate:fromdate, todate:todate},
+			data:{fp:fp, fromdate:fromdate, todate:todate, dprarea:dprarea, atype:atype, si: si},
 			//contentType:"application/json; charset=utf-8",
 			success:function(data) {
 
-				var len = data.length;
+				var len = data.length - 1;
 				var acc = new Array(len);
 				var rej = new Array(len);
 				var skp = new Array(len);
@@ -110,6 +130,7 @@ $(document).ready(function(){
 				var total_skp = 0;
 				var total_rep = 0;
 				var total_cov = 0.0;
+				var mgh = parseInt(data[len].mgh);
 
 				for (var i = 0; i < len; i++) {
 					acc[i] = data[i].acc; total_acc += parseInt(data[i].acc);
@@ -117,7 +138,7 @@ $(document).ready(function(){
 					skp[i] = data[i].skp; total_skp += parseInt(data[i].skp);
 					rep[i] = data[i].rep; total_rep += parseInt(data[i].rep);
 					cov[i] = data[i].cov; total_cov += parseFloat(data[i].cov);
-					dt[i] = data[i].dt;						
+					dt[i] = data[i].dt;
 				}
 
 				console.log(acc);
@@ -132,37 +153,55 @@ $(document).ready(function(){
 				console.log(total_skp);
 				console.log(total_rep);
 				console.log(total_cov);
+				console.log(mgh);
 
 				var trace1 = {
 					x: dt,
 					y: acc,
 					name: 'Accepted',
-					type: 'bar'
+					type: 'bar',
+					marker: {
+						color: 'rgb(14,197,29)',
+					}
 				};
 				var trace2 = {
 					x: dt,
 					y: rej,
 					name: 'Rejected',
-					type: 'bar'
+					type: 'bar',
+					marker: {
+						color: 'rgb(227,0,0)',
+					}
 				};
 				var trace3 = {
 					x: dt,
 					y: skp,
 					name: 'Skippped',
-					type: 'bar'
+					type: 'bar',
+					marker: {
+						color: 'rgb(0,35,255)',
+					}
 				};
 				var trace4 = {
 					x: dt,
 					y: rep,
 					name: 'Repeated',
-					type: 'bar'
+					type: 'bar',
+					marker: {
+						color: 'rgb(242,225,25)',
+					}
 				};
+
+				var colors = ['rgb(14,197,29)', 'rgb(227,0,0)', 'rgb(0,35,255)', 'rgb(242,225,25)'];
 
 				var pie_data = [{
 					values: [total_acc, total_rej, total_skp, total_rep],
 					labels: ['Accepted', 'Rejected', 'Skippped', 'Repeated'],
 					type: 'pie',
 					hoverinfo: 'label+value+percent',
+					marker: {
+						colors: colors,
+					}
 				}];
 				var pie_layout = {
 					title: {
@@ -212,26 +251,47 @@ $(document).ready(function(){
 							},
 						},
 					},
+					shapes: [
+				    {
+				        type: 'line',
+				        xref: 'paper',
+				        x0: 0,
+				        y0: mgh,
+				        x1: 1,
+				        y1: mgh,
+				        line:{
+				            color: 'rgb(255, 0, 0)',
+				            width: 2,
+				            dash:'dashdot'
+				        }
+				    }
+				    ]
 				};
 				Plotly.newPlot('result', graph_data, layout);
 				Plotly.newPlot('pie_result', pie_data, pie_layout);
 				writeTable(total_acc, total_rej, total_skp, total_rep, total_cov, fp_text, fromdate, todate);
 			}
 		});
-	}
+	};
 
 	$('#fetch').click(function() {
 		var fp = $('#fpselect').val();
 		var fp_text = $('#fpselect option:selected').text();
+		var dprarea = $('#areaselect option:selected').text();
+		var atype = $('#acqtypeselect option:selected').text();
+		var si = $('#acqtypeselect option:selected').val();
 		if(fp.length == 0) {
 			alert("Please select a field party.");
 			return false;
 		}
 		var fromdate = $('#fromdate').val();
 		var todate = $('#todate').val();
-		if(fromdate.length == 0 || todate.length == 0) {
-			alert(fromdate + ' ' + todate);
+		if(fromdate.length == 0) {
+			alert("Start date is nil.");
 			return false;
+		}
+		else if(fromdate.length > 0 && todate.length == 0) {
+			todate = formatDate(new Date());
 		}
 		var fromdt= new Date(fromdate);
 		var todt = new Date(todate);
@@ -240,16 +300,20 @@ $(document).ready(function(){
 			return false;
 		}
 
-		load_data(fp, fromdate, todate, fp_text);			
+		load_data(fp, fromdate, todate, fp_text, dprarea, atype, si);	
 	});	
 
 	function writeTable(total_acc, total_rej, total_skp, total_rep, total_cov, fp_text, fromdate, todate) {
-		
+
 		$('#table_result').empty();
 		var html = '<h4>' + fp_text + '</h4><p class="text-left">' + fromdate + ' to ' + todate + '</p>';
 		html += '<table class="table table-bordered table-striped table-hover"><thead class="thead-dark"><tr><th scope="col">Item</th><th scope="col">Value</th></tr></thead>';
-		html += '<tbody><tr><td>Accepted Shots</td><td>' + total_acc + '</td></tr><tr><td>Rejected Shots</td><td>' + total_rej + '</td></tr><tr><td>Skipped Shots</td><td>' + total_skp + '</td></tr><tr><td>Repeated Shots</td><td>' + total_rep + '</td></tr><tr><td>Total Coverage (SKM)</td><td>' + total_cov.toFixed(4) + '</td></tr></tbody></table>';
+		html += '<tbody><tr><td>Accepted Shots</td><td>' + total_acc + '</td></tr><tr><td>Rejected Shots</td><td>' + total_rej + '</td></tr><tr><td>Skipped Shots</td><td>' + total_skp + '</td></tr><tr><td>Repeated Shots</td><td>' + total_rep + '</td></tr><tr><td>Total Coverage (SKM/LKM)</td><td>' + total_cov.toFixed(4) + '</td></tr></tbody></table>';
 		$('#table_result').append(html);
 	}
 });
+</script>
+
+<script type="text/javascript">
+	$("#fpselect").select2();
 </script>
