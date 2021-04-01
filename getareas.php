@@ -6,7 +6,7 @@ $fp = $_REQUEST["fp"];
 
 if(isset($fp)) {
 	$conn = connect_db();
-	$query = "SELECT si_id, concat(si_area, ' (', si_no, ')') as areas FROM cgsdb.si where si_gp LIKE \"%$fp%\"";
+  $query = "SELECT si_id, concat(si_area, ' (', si_no, ')') as areas FROM cgsdb.si where si_fp LIKE \"%$fp%\"";
 	$result = mysqli_query($conn, $query);
 	if(mysqli_num_rows($result) > 0) {
 		echo '<option value="" disabled selected>Choose one...</option>';
